@@ -6,7 +6,7 @@ output:
   pdf_document: default
   html_document: default
 ---
-**github link: **
+**github link: https://github.com/chieelo/STATS/tree/e1224d54af1fbed6f695f4c35724294d28476eb7/FA4_GROUP3_BORROMEO_MAYO_MERCADO**
 
 ## The normal data are female height measurements, the skewed-right data are age at marriage for females, the skewed-left data are obituary data that give the age at death for females, and the uniform data are the amount of cola put into a 12 ounce container by a soft drinks machine.
 
@@ -127,3 +127,4 @@ kable(moment_tab, digits = 4,
       caption = "Relations between the moments")
 
 ```
+
