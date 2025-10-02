@@ -1,0 +1,246 @@
+---
+title: "Formative Assessment 5"
+author: "Borromeo_Mayo_Mercado"
+date: "2025-09-30"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+---
+
+[*https://github.com/chieelo/STATS/tree/main/FA5_GROUP3_BORROMEO_MAYO_MERCADO*]
+
+# Elementary Sampling Theory
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(ggplot2)
+```
+
+## Problem 8.18
+
+List all samples of size n=2 that are possible (with replacement) from the population in Problem 8.17. Use the chart wizard of EXCEL to plot the sampling distribution of the mean to show that $$
+\mu_{\bar X} = \mu $$ and show that $$\sigma_{\bar X}^2 = \frac{\sigma^2}{2}$$
+
+**Population (from 8.17):** $$\{ 9, 12, 15 \}, \quad p(x) = \frac{1}{3}$$
+
+```{r 8.18}
+pop <- c(9, 12, 15)
+
+samples <- expand.grid(pop, pop)
+names(samples) <- c("x1", "x2")
+
+samples$xbar <- rowMeans(samples)
+
+dist_table <- as.data.frame(table(xbar = samples$xbar))
+dist_table$xbar <- as.numeric(as.character(dist_table$xbar))
+dist_table$prob <- dist_table$Freq / nrow(samples)
+
+mu_pop <- mean(pop)
+var_pop <- sum((pop - mu_pop)^2) / length(pop)
+
+mu_xbar <- sum(dist_table$xbar * dist_table$prob)
+E_xbar2 <- sum((dist_table$xbar^2) * dist_table$prob)
+var_xbar <- E_xbar2 - mu_xbar^2
+
+theoretical_var_xbar <- var_pop / 2
+
+print(samples)
+print(dist_table)
+```
+
+- Population variance (σ²) = **`r round(var_pop, 2)`**
+
+- Population mean (μ) = **`r round(mu_pop, 2)`**
+
+- Mean of sampling distribution (μₓ̄) = **`r round(mu_xbar, 2)`**
+
+- Variance of sampling distribution (σ²ₓ̄) = **`r round(var_xbar, 2)`**
+
+- Theoretical σ²/n = **`r round(theoretical_var_xbar, 2)`**
+
+
+```{r}
+mp <- barplot(height = dist_table$prob,
+              names.arg = dist_table$xbar,
+              main = "Sampling Distribution of xbar (n=2, Population {9,12,15})",
+              xlab = "xbar",
+              ylab = "",
+              col = "violet",
+              ylim = c(0, 0.4))
+
+text(x = mp,
+     y = dist_table$prob,
+     labels = round(dist_table$prob, 3),
+     pos = 3, cex = 0.8)
+
+smooth_line <- spline(x = mp, y = dist_table$prob, n = 200)
+
+lines(smooth_line, col = "purple", lwd = 2)
+points(mp, dist_table$prob, pch = 16, col = "purple")
+
+
+```
+
+As we can see, $$
+\mu_{\bar X} = \mu $$ $$12 = 12$$ $$\sigma_{\bar X}^2 = \frac{\sigma^2}{2}$$ $$3 = 3$$
+
+---
+
+## Problem 8.21
+
+A population consists of the four numbers 3, 7, 11, and 15. Consider all possible samples of size 2 that can be drawn with replacement from this population. Find (a) the population mean, (b) the population standard deviation, (c) the mean of the sampling distribution of means, and (d) the standard deviation of the sampling distribution of means. Verify parts (c) and (d) directly from (a) and (b) by using suitable formulas.
+
+```{r 8.21}
+pop <- c(3, 7, 11, 15)
+
+mu_pop <- mean(pop)
+var_pop <- sum((pop - mu_pop)^2) / length(pop)
+sd_pop <- sqrt(var_pop)
+
+samples <- expand.grid(pop, pop)
+samples$xbar <- rowMeans(samples)
+
+dist_table <- as.data.frame(table(xbar = samples$xbar))
+dist_table$xbar <- as.numeric(as.character(dist_table$xbar))
+dist_table$prob <- dist_table$Freq / nrow(samples)
+
+mu_xbar <- sum(dist_table$xbar * dist_table$prob)
+
+E_xbar2 <- sum((dist_table$xbar^2) * dist_table$prob)
+var_xbar <- E_xbar2 - mu_xbar^2
+sd_xbar <- sqrt(var_xbar)
+
+theoretical_sd_xbar <- sqrt(var_pop / 2)
+```
+
+Population values: 3, 7, 11, 15  
+
+(a) Population mean (μ) = **`r round(mu_pop, 2)`**  
+
+(b) Population standard deviation (σ) = **`r round(sd_pop, 2)`**  
+
+(c) Mean of sampling distribution (μₓ̄) = **`r round(mu_xbar, 2)`**  
+
+(d) Standard deviation of sampling distribution (σₓ̄) = **`r round(sd_xbar, 2)`** 
+
+
+$$
+\text{From the population } \{3,7,11,15\}, \text{ we found } \mu = 9, \quad \sigma = \sqrt{20} \approx 4.472.
+$$  
+
+$$
+\text{From the sampling distribution of sample means with } n=2: \quad 
+\mu_{\bar X} = 9, \quad \sigma_{\bar X} = \sqrt{10} \approx 3.162.
+$$  
+
+$$
+\mu_{\bar X} = \mu,
+$$  
+
+$$
+\text{Therefore, the mean of the sampling distribution equals the population mean.}
+$$  
+
+$$
+\sigma_{\bar X} = \frac{\sigma}{\sqrt{n}} = \frac{4.472}{\sqrt{2}} = 3.162,
+$$  
+
+$$
+\text{This agrees with the computed value.}
+$$  
+
+$$
+\therefore \; E[\bar X] = \mu, \quad \sigma_{\bar X} = \frac{\sigma}{\sqrt{n}}.
+$$
+
+---
+
+## Problem 8.34 
+
+Find the probability that of the next 200 children born, (a) less than 40% will be boys, (b) between 43% and 57% will be girls, and (c) more than 54% will be boys. Assume equal probabilities for the births of boys and girls.
+
+
+```{r 8.34}
+n <- 200
+p <- 0.5
+phat_mean <- p
+phat_sd <- sqrt(p * (1 - p) / n)
+
+z_a <- (0.40 - phat_mean) / phat_sd
+p_a <- pnorm(z_a)
+
+z1_b <- (0.43 - phat_mean) / phat_sd
+z2_b <- (0.57 - phat_mean) / phat_sd
+p_b <- pnorm(z2_b) - pnorm(z1_b)
+
+z_c <- (0.54 - phat_mean) / phat_sd
+p_c <- 1 - pnorm(z_c)
+```
+
+Population values: 3, 7, 11, 15  
+
+(a) = **`r round(p_a, 4)`**  
+
+(b) = **`r round(p_b, 4)`**  
+
+(c) = **`r round(p_c, 4)`**  
+
+
+
+$$
+(a)\; P(\hat{p} < 0.40) \approx 0.00234
+$$
+
+$$
+(b)\; P(0.43 \leq \hat{p} \leq 0.57) \approx 0.95229
+$$
+
+$$
+(c)\; P(\hat{p} > 0.54) \approx 0.12895
+$$
+---
+
+## Problem 8.49
+
+The credit hour distribution at Metropolitan Technological College is as follows:
+
+| x | 6 | 9 | 12 | 15 | 18 |
+|---:|---:|---:|---:|---:|---:|
+| p(x) | 0.1 | 0.2 | 0.4 | 0.2 | 0.1 |
+
+Find mu and sigma^2. Give the 25 (with replacement) possible samples of size 2, their means, and their probabilities.
+
+```{r 8.49}
+x <- c(6, 9, 12, 15, 18)
+px <- c(0.1, 0.2, 0.4, 0.2, 0.1)
+
+mu <- sum(x * px)
+E_x2 <- sum(x^2 * px)
+var_pop <- E_x2 - mu^2
+```
+(a) Population mean = **`r round(mu, 2)`**  
+
+(b) Population variance = **`r round(var_pop, 2)`**  
+
+
+```{r}
+samples <- expand.grid(x, x)
+colnames(samples) <- c("x1", "x2")
+samples$mean <- rowMeans(samples)
+samples$prob <- px[match(samples$x1, x)] * px[match(samples$x2, x)]
+print(samples)
+
+```
+Therefore,
+
+\[
+\mu = \sum x p(x) = 12 
+\]
+\[
+\sigma^2 = \sum x^2 p(x) - \mu^2 = 10.8
+\]
+
+And all 25 (with replacement) possible samples can easily be seen above.
+
