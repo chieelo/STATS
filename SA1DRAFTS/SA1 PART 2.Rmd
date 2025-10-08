@@ -1,0 +1,114 @@
+---
+title: "sa1 part II"
+author: "Elisha Sophia Borromeo"
+date: "2025-10-08"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### SUMMATIVE ASSESSMENT 1PART II
+
+#### 1. Find the (a) first, (b) second, (c) third, and (d) fourth moments of the set 2, 3, 7, 8, 10.
+
+Given Set: 2, 3, 7, 8, 10.
+Recall the formula for reference: 
+$$
+\begin{aligned}
+m_1' &= \frac{1}{n} \sum_{i=1}^{n} x_i \\[6pt]
+m_2' &= \frac{1}{n} \sum_{i=1}^{n} x_i^2 \\[6pt]
+m_3' &= \frac{1}{n} \sum_{i=1}^{n} x_i^3 \\[6pt]
+m_4' &= \frac{1}{n} \sum_{i=1}^{n} x_i^4
+\end{aligned}
+$$
+
+
+```{r, results='asis'}
+given <- c(2, 3, 7, 8, 10)
+n <- length(given)
+
+m1p <- mean(given)
+m2p <- mean(given^2)
+m3p <- mean(given^3)
+m4p <- mean(given^4)
+
+cat("$$",
+    "\\begin{aligned}",
+    "\\text{Moments of the set:} \\\\",
+    "m_1' &= ", m1p, " \\\\",
+    "m_2' &= ", m2p, " \\\\",
+    "m_3' &= ", m3p, " \\\\",
+    "m_4' &= ", m4p,
+    "\\end{aligned}",
+    "$$")
+
+```
+
+
+#### 2. Find the (a) first, (b) second, (c) third, and (d) fourth moments about the mean of the set 2, 3, 7, 8, 10.
+
+Now, we will be looking for the moments about the mean of the same set.
+Recall the formulas for reference:
+
+$$
+\begin{aligned}
+m_1 &= \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x}) \\[6pt]
+m_2 &= \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})^2 \\[6pt]
+m_3 &= \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})^3 \\[6pt]
+m_4 &= \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})^4
+\end{aligned}
+$$
+
+```{r, results='asis'}
+given <- c(2, 3, 7, 8, 10)
+n <- length(given)
+meanV <- mean(given)
+
+m1 <- mean(given - meanV)
+m2 <- mean((given - meanV)^2)
+m3 <- mean((given - meanV)^3)
+m4 <- mean((given - meanV)^4)
+
+cat("$$",
+    "\\begin{aligned}",
+    "\\text{Central Moments of the set:} \\\\[6pt]",
+    "m_1 &= ", m1, " \\\\[6pt]",
+    "m_2 &= ", m2, " \\\\[6pt]",
+    "m_3 &= ", m3, " \\\\[6pt]",
+    "m_4 &= ", m4,
+    "\\end{aligned}",
+    "$$")
+```
+
+#### 3. Verify: $$ m_4 = m_4' - 4m_1'm_3' + 6m_1'^2 m_2' - 3m_1'^4 $$
+
+We will still be using the same given set.
+For purposes of readability, let the right equation be u.
+
+```{r, results='asis'}
+given <- c(2, 3, 7, 8, 10)
+n <- length(given)
+
+m1p <- mean(given)
+m2p <- mean(given^2)
+m3p <- mean(given^3)
+m4p <- mean(given^4)
+
+meanV <- mean(given)
+m4 <- mean((given - meanV)^4)
+u <- m4p - 4*m1p*m3p + 6*(m1p^2)*m2p - 3*(m1p^4)
+
+cat("$$",
+    "\\begin{aligned}",
+    "\\text{We get:} \\quad & m_4 = ", m4, " \\\\[6pt]",
+    "\\text{Likewise:} \\quad & u = ", u, " \\\\[6pt]",
+    "\\text{Hence,} \\quad & m_4 = u \\\\[6pt]",
+    "\\text{Therefore,} \\quad & m_4 = m_4' - 4m_1'm_3' + 6(m_1')^2 m_2' - 3(m_1')^4",
+    "\\end{aligned}",
+    "$$")
+
+
+
+```
+
+
