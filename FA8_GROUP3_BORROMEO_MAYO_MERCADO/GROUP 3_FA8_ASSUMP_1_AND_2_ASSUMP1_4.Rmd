@@ -1,0 +1,233 @@
+---
+title: "FA8 Assumption 1 and 2"
+author: "Borromeo Mayo Mercado"
+date: "2025-11-10"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+---
+title: "Independent Samples t-test: Invisibility Cloak Data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The following table is loaded from the csv file found in FA8 Instructions.
+
+```{r load-data}
+library(knitr)
+
+df <- read.csv("InvisibilityCloak.csv", header = TRUE)
+kable(df, caption = "Invisibility Cloak Dataset")
+
+```
+
+---
+
+# Assumption 1: Dependent Variable Must Be Continuous
+
+The dependent variable Mischief represents the number of mischievous behaviors.  
+Even though Mischief is technically count data, the range (0–8) and multiple numeric values allow us to treat it as continuous for a t-test.
+
+**Assumption 1 is satisfied.**
+
+```{r assume1-table, warning=FALSE, message=FALSE}
+suppressMessages(library(dplyr))
+suppressMessages(library(knitr))
+
+mischief_summary <- df %>%
+  summarise(
+    Min = min(Mischief),
+    `1st Quartile` = quantile(Mischief, 0.25),
+    Median = median(Mischief),
+    Mean = mean(Mischief),
+    `3rd Quartile` = quantile(Mischief, 0.75),
+    Max = max(Mischief),
+    SD = sd(Mischief)
+  )
+
+kable(mischief_summary, caption = "Descriptive Statistics for Mischief")
+```
+
+---
+
+# Assumption 2: Independent Variable Must Have Two Independent Groups
+
+The independent variable Cloak has exactly two groups:
+
+0 = Without Cloak  
+1 = With Cloak  
+
+Additionally, there are equal number of participants in each group (12 participants each) and no participant belongs to both groups.
+
+**Assumption 2 is satisfied.**
+
+```{r assume2-table, warning=FALSE, message=FALSE}
+suppressMessages(library(dplyr))
+suppressMessages(library(knitr))
+
+cloak_summary <- df %>%
+  group_by(Cloak) %>%
+  summarise(`Number of Participants` = n()) %>%
+  mutate(Group = ifelse(Cloak == 0, "Without Cloak", "With Cloak")) %>%
+  select(Group, `Number of Participants`)
+
+kable(cloak_summary, caption = "Number of Participants per Cloak Group")
+```
+
+# Assumption 3: Independence of Observations
+
+Each participant is present in only one group.
+Participants belong either to:
+
+0 = Without Cloak
+1 = With Cloak
+
+```{r}
+
+
+unique_participants <- length(unique(df$Participant))
+total_participants <- nrow(df)
+
+independence_check <- ifelse(unique_participants == total_participants,
+"All participants are unique.",
+"Some participants appear more than once. Assumption 3 is not satisfied")
+
+independence_check
+```
+No participant is included in both groups.
+
+**Assumption 3 is satisfied.**
+
+## 📊 Assumption 4: Outliers
+
+We inspect potential outliers in the *Mischief* scores for each cloak condition using a **Raincloud Plot**.  
+This plot combines a boxplot, a violin (distribution), and individual data points to visualize data spread and identify extreme values.
+
+```{r, message=FALSE, warning=FALSE}
+# install.packages(c("ggplot2", "ggdist", "dplyr"))
+library(ggplot2)
+library(ggdist)
+library(dplyr)
+
+invisibility <- data.frame(
+  Participant = 1:24,
+  Cloak = c(rep(0, 12), rep(1, 12)),
+  Mischief = c(3,1,5,4,6,4,6,2,0,5,4,5,
+               4,3,6,6,8,5,5,4,2,5,7,5)
+)
+
+
+invisibility$Cloak <- factor(invisibility$Cloak,
+                             levels = c(0, 1),
+                             labels = c("Without a cloak", "With a cloak"))
+
+
+ggplot(invisibility, aes(x = Cloak, y = Mischief, fill = Cloak, color = Cloak)) +
+  
+
+  stat_halfeye(
+    adjust = 0.6,
+    width = 0.6,
+    .width = 0,
+    justification = -0.3,
+    point_colour = NA
+  ) +
+  
+
+  geom_boxplot(
+    width = 0.15,
+    outlier.shape = NA,
+    alpha = 0.5
+  ) +
+  
+ 
+  geom_jitter(
+    width = 0.07,
+    alpha = 0.8,
+    size = 2
+  ) +
+  
+  
+  scale_fill_manual(values = c("#00A087", "#E64B35")) +
+  scale_color_manual(values = c("#00A087", "#E64B35")) +
+  labs(
+    title = "Raincloud Plot of Mischief by Cloak Condition",
+    x = "Cloak",
+    y = "Mischief"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+```
+Interpretation:
+The raincloud plot shows the distribution and spread of Mischief scores for both cloak conditions.
+No extreme values or points outside the whiskers are visible, suggesting no significant outliers in either group.
+**Assumption 4 is satisfied.**
+
+
+# Computation
+
+## 1. Levene's Test for Equality of Variances
+
+```{r levene-test, warning=FALSE, message=FALSE}
+#install.packages("lawstat")
+library(lawstat)
+levene_result <- levene.test(df$Mischief, df$Cloak)
+
+levene_table <- data.frame(
+  "Test Statistic" = round(levene_result$statistic, 3),
+  "p-value" = round(levene_result$p.value, 3)
+)
+
+knitr::kable(levene_table, caption = "Levene's Test for Equality of Variances")
+```
+
+This table shows whether the variances of Mischief are equal between the two groups.Since p = 0.609 > 0.05 then variances are not significantly different, so we can assume equal variances for the t-test.
+
+---
+
+## 2. Independent Samples t-test
+
+```{r t-test, warning=FALSE, message=FALSE}
+t_result <- t.test(Mischief ~ factor(Cloak), data = df, var.equal = TRUE)
+
+group_means <- t_result$estimate
+mean_diff <- diff(group_means)
+ci_lower <- t_result$conf.int[1]
+ci_upper <- t_result$conf.int[2]
+t_value <- t_result$statistic
+df_val <- t_result$parameter
+p_val <- t_result$p.value
+
+t_table <- data.frame(
+  "Group" = c("Without Cloak", "With Cloak"),
+  "Mean" = round(group_means, 2)
+)
+
+t_summary <- data.frame(
+  "t-value" = round(t_value, 3),
+  "df" = df_val,
+  "p-value" = round(p_val, 3),
+  "Mean Difference" = round(mean_diff, 3),
+  "95% CI Lower" = round(ci_lower, 3),
+  "95% CI Upper" = round(ci_upper, 3)
+)
+
+knitr::kable(t_table, caption = "Group Means for Mischief")
+knitr::kable(t_summary, caption = "Independent Samples t-test Results")
+```
+
+These tables clearly summarize the group means and t-test results, including mean difference, confidence interval, and p-value. The t-test shows no significant difference between groups (t(22) = -1.713, p = 0.101), with a mean difference of 1.25 and 95% CI [-2.763, 0.263].
+
+
+
+
+
+
