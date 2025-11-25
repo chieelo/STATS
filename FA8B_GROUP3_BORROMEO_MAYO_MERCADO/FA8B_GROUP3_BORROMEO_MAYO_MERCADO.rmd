@@ -1,0 +1,279 @@
+---
+title: "FA8B BORROMEO MAYO MERCADO RMD FILE"
+author: "Borromeo Mayo Mercado"
+date: "2025-11-22"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+data("PlantGrowth")
+df <- PlantGrowth
+head(df)
+library(tidyverse)
+library(rstatix)
+library(knitr)
+library(dplyr)
+library(kableExtra)
+```
+
+github link: https://github.com/chieelo/STATS/tree/main/FA8B_GROUP3_BORROMEO_MAYO_MERCADO
+
+## Assumptions
+
+### Assumption #1: You have one dependent variable that is measured at the continuous level.
+
+**Remark.** The dependent variable is *weight*, which measures dried plant weight in grams. This dependent variable is continuous.
+
+### Assumption #2: You have one independent variable that consists of three or more categorical, independent groups.
+
+**Remark.** The independent variable is *group*, which has three categorical levels: **ctrl**, **trt1**, and **trt2**.
+
+### Assumption #3: You should have independence of observations.
+
+**Remark.** Each plant was measured independently, and no plant appears in more than one group. The groups are independent experimental conditions.
+
+### Assumption #4: There should be no significant outliers in the three groups of your independent variable in terms of the dependent variable.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(df, aes(x = group, y = weight, fill = group)) +
+ggdist::stat_halfeye(
+adjust = .7, width = .6, .width = 0,
+justification = -0.3, point_colour = NA
+) +
+geom_boxplot(width = .25, outlier.shape = NA, alpha = 0.5) +
+geom_jitter(width = .05, alpha = 0.8) +
+theme_minimal(base_size = 14) +
+labs(
+title = "Raincloud Plot of Plant Weights by Group",
+x = "Group",
+y = "Plant Weight (g)"
+)
+```
+
+**Remark.** There were no significant outliers in any of the three groups, as assessed by visual inspection of the raincloud/boxplots.
+
+#### Assumption #5: The dependent variable should be approximately normally distributed for each group of the independent variable.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(psych)
+library(tidyverse)
+library(rstatix)
+library(kableExtra)
+
+# Descriptives
+desc <- df %>%
+  group_by(group) %>%
+  summarise(
+    Valid = as.integer(n()),
+    Missing = as.integer(sum(is.na(weight))),
+    Mean = mean(weight),
+    SD = sd(weight),
+    .groups = "drop"
+  )
+
+# Skewness / kurtosis
+shape_stats <- df %>%
+  group_by(group) %>%
+  summarise(
+    Skewness = psych::skew(weight)[1],
+    SE_Skew = sqrt(6 / n()),
+    Kurtosis = psych::kurtosi(weight)[1],
+    SE_Kurt = sqrt(24 / n()),
+    .groups = "drop"
+  )
+
+# Shapiro-Wilk
+shap <- df %>%
+  group_by(group) %>%
+  shapiro_test(weight) %>%
+  rename(
+    Shapiro_Wilk = statistic,
+    Shapiro_p = p
+  ) %>%
+  select(group, Shapiro_Wilk, Shapiro_p)
+
+# Combine all
+final <- desc %>%
+  left_join(shape_stats, by = "group") %>%
+  left_join(shap, by = "group")
+
+# Transpose
+final_t <- final %>%
+  pivot_longer(-group, names_to = "Statistic", values_to = "Value") %>%
+  pivot_wider(names_from = group, values_from = Value)
+
+# Format numbers
+final_t <- final_t %>%
+  mutate(across(-Statistic, ~ if_else(Statistic %in% c("Valid", "Missing"), 
+                                      as.character(as.integer(.)), 
+                                      sprintf("%.3f", .))))
+
+#table with header
+final_t %>%
+  kable(
+    caption = "Descriptive Statistics and Normality Tests by Group (Transposed)",
+    align = "c",
+    col.names = c("", names(final_t)[-1])  # remove "Statistic"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  ) %>%
+  add_header_above(c("Weight (g)" = ncol(final_t)))  
+
+```
+
+**Remark.** Since all p-values are greater than .05, the plant weights are approximately normally distributed for each group.
+
+#### Assumption #6: Homogeneity of variances (i.e., the variance of the dependent variable is equal in each group of your independent variable).
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+lev <- df %>% levene_test(weight ~ group)
+
+lev %>%
+  rename(
+    `Statistic (F)` = statistic,
+    `p-value` = p
+  ) %>%
+  kable(
+    caption = "Test for Equality of Variances (Levene's Test)",
+    digits = 4,
+    align = "c"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  )
+```
+
+**Remark.** There was homogeneity of variances, as assessed by Levene's test (p > .05).
+
+
+#### Computation
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(rstatix)
+library(kableExtra)
+
+anova_res <- aov(weight ~ group, data = df)
+
+anova_table <- anova(anova_res) %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Source") %>%
+  rename(
+    DF = "Df",
+    `Sum of Squares` = "Sum Sq",
+    `Mean Square` = "Mean Sq",
+    F = "F value",
+    P = "Pr(>F)"
+  )
+
+anova_table <- anova_table %>%
+  mutate(
+    `Partial Eta²` = case_when(
+      Source != "Residuals" ~ `Sum of Squares` / sum(`Sum of Squares`),
+      TRUE ~ NA_real_
+    ),
+    `Sum of Squares` = round(`Sum of Squares`, 3),
+    `Mean Square` = round(`Mean Square`, 3),
+    F = round(F, 3),
+    P = ifelse(!is.na(P), signif(P, 3), NA),
+    `Partial Eta²` = ifelse(!is.na(`Partial Eta²`), round(`Partial Eta²`, 3), NA)
+  )
+
+anova_table %>%
+  kable(
+    caption = "ANOVA Table for Weight by Group",
+    align = "c"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  )
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(kableExtra)
+
+desc_weight <- df %>%
+  group_by(group) %>%
+  summarise(
+    Mean = round(mean(weight), 3),
+    SD = round(sd(weight), 3),
+    N = n(),
+    .groups = "drop"
+  )
+
+desc_weight %>%
+  kable(
+    caption = "Descriptive Statistics of Weight by Group",
+    align = c("l", "c", "c", "c")
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  )
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(rstatix)
+library(kableExtra)
+
+df <- df %>% mutate(group = as.factor(group))
+anova_res <- aov(weight ~ group, data = df)
+tukey <- tukey_hsd(anova_res, "group")
+resid_ms <- summary(anova_res)[[1]]$`Mean Sq`[2]
+
+posthoc_table <- tukey %>%
+  rowwise() %>%
+  mutate(
+    SE = sqrt(resid_ms * (1/(df %>% filter(group == group1) %>% nrow()) +
+                          1/(df %>% filter(group == group2) %>% nrow()))),
+    t = estimate / SE
+  ) %>%
+  ungroup() %>%
+  select(group1, group2, estimate, conf.low, conf.high, SE, t, p.adj) %>%
+  rename(
+    `Group 1` = group1,
+    `Group 2` = group2,
+    `Mean Difference` = estimate,
+    `Lower` = conf.low,
+    `Upper` = conf.high,
+    `p_Tukey` = p.adj
+  ) %>%
+  mutate(
+    `Mean Difference` = round(`Mean Difference`, 3),
+    Lower = round(Lower, 3),
+    Upper = round(Upper, 3),
+    SE = round(SE, 3),
+    t = round(t, 3),
+    p_Tukey = signif(p_Tukey, 3),
+    Comparison = paste(`Group 1`, "-", `Group 2`)
+  ) %>%
+  select(Comparison, `Mean Difference`, Lower, Upper, SE, t, p_Tukey)
+
+posthoc_table <- posthoc_table %>% mutate(across(everything(), as.character))
+
+col_headers <- c("Comparison", "Mean Diff", "Lower", "Upper", "SE", "t", "p_Tukey")
+
+posthoc_table %>%
+  kable(
+    caption = "Post-hoc Tukey HSD Comparison of Weight (Plant Growth)",
+    col.names = col_headers,
+    align = c("l", "c", "c", "c", "c", "c", "c")
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  ) %>%
+  add_header_above(c("95% CI for Mean Difference" = 7))  
+
+```
+\newpage
+## Reporting
+
+A one-way ANOVA was conducted to determine whether plant weight differed among the three treatment groups (*ctrl*, *trt1*, *trt2*). The dependent variable was dried plant weight (in grams), and the independent variable consisted of three categorical, independent groups. There were no outliers in any group, as assessed by inspection of the boxplots. Plant weight was approximately normally distributed for each group, as assessed by Shapiro-Wilk tests (p > .05). Homogeneity of variances was confirmed by Levene's test (p > .05), indicating that the assumption of equal variances was met. Descriptive statistics showed that mean plant weight differed across groups: **ctrl** (M = 5.032, SD = 0.583), **trt1** (M = 4.661, SD = 0.794), and **trt2** (M = 5.526, SD = 0.443). The one-way ANOVA revealed that mean plant weight was significantly different between treatment groups, *F*(2, 27) = 4.846, *p* = .016, partial $\eta^2$ = .264. Tukey post hoc comparisons indicated that the mean weight for **trt2** was significantly higher than for **trt1** (mean difference = 0.864 g, 95% CI [0.144, 1.584], *p* = .016). However, the comparisons between **ctrl vs. trt1** (mean difference = 0.371 g, 95% CI [-0.348, 1.090], *p* = .436) and **ctrl vs. trt2** (mean difference = -0.494 g, 95% CI [-1.214, 0.226], *p* = .218) were not statistically significant. In summary, only the comparison between **trt1 and trt2** showed a statistically significant difference in plant weight, with the **trt2** group producing heavier plants on average.
+
