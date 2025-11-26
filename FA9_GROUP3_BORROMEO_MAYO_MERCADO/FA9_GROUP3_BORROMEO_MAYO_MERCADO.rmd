@@ -1,0 +1,352 @@
+---
+title: "FA9 BORROMEO MAYO MERCADO RMD FILE"
+author: "Borromeo Mayo Mercado"
+date: "2025-11-22"
+output:
+  pdf_document:
+    latex_engine: lualatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rstatix)
+library(kableExtra)
+library(psych)
+
+crop_yield <- tribble(
+  ~Fertilizer, ~Wheat, ~Corn, ~Soy, ~Rice,
+  "Blend X", 123, 128, 166, 151,
+  "Blend X", 156, 150, 178, 125,
+  "Blend X", 112, 174, 187, 117,
+  "Blend X", 100, 116, 153, 155,
+  "Blend X", 168, 109, 195, 158,
+  "Blend Y", 135, 175, 140, 167,
+  "Blend Y", 130, 132, 145, 183,
+  "Blend Y", 176, 120, 159, 142,
+  "Blend Y", 120, 187, 131, 167,
+  "Blend Y", 155, 184, 126, 168,
+  "Blend Z", 156, 186, 185, 175,
+  "Blend Z", 180, 138, 206, 173,
+  "Blend Z", 147, 178, 188, 154,
+  "Blend Z", 146, 176, 165, 191,
+  "Blend Z", 193, 190, 188, 169
+)
+
+df <- crop_yield %>% 
+  pivot_longer(cols = Wheat: Rice, names_to = "Crop", values_to = "Yield")
+
+df$Fertilizer <- as.factor(df$Fertilizer)
+df$Crop <- as.factor(df$Crop)
+
+
+```
+
+## Assumptions
+
+### Assumption #1: The dependent variable, crop yield, is measured at the continuous level.
+
+
+### Assumption #2: The two independent variables, fertilizer type (Blend X, Blend Y, Blend Z) and crop type (Wheat, Corn, Soy, Rice), each consist of two or more categorical, independent groups.
+
+
+### Assumption #3: The independence of observation is observed.
+
+### Assumption #4: There are no significant outliers in each of the 12 cells of the design.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(ggplot2)
+library(ggdist)
+
+# Your data
+df <- tribble(
+  ~Fertilizer, ~Wheat, ~Corn, ~Soy, ~Rice,
+  "Blend X", 123, 128, 166, 151,
+  "Blend X", 156, 150, 178, 125,
+  "Blend X", 112, 174, 187, 117,
+  "Blend X", 100, 116, 153, 155,
+  "Blend X", 168, 109, 195, 158,
+  "Blend Y", 135, 175, 140, 167,
+  "Blend Y", 130, 132, 145, 183,
+  "Blend Y", 176, 120, 159, 142,
+  "Blend Y", 120, 187, 131, 167,
+  "Blend Y", 155, 184, 126, 168,
+  "Blend Z", 156, 186, 185, 175,
+  "Blend Z", 180, 138, 206, 173,
+  "Blend Z", 147, 178, 188, 154,
+  "Blend Z", 146, 176, 165, 191,
+  "Blend Z", 193, 190, 188, 169
+)
+
+df_long <- df %>%
+  pivot_longer(cols = Wheat: Rice, names_to = "Crop", values_to = "Yield")
+
+df_long$Fertilizer <- as.factor(df_long$Fertilizer)
+df_long$Crop <- as.factor(df_long$Crop)
+
+ggplot(df_long, aes(x = Fertilizer, y = Yield, fill = Crop, color = Crop)) +
+  ggdist::stat_halfeye(
+    adjust = 0.7, width = 0.6, .width = 0,
+    justification = 0.3,   # shift half-eye to the right
+    point_colour = NA,
+    position = position_dodge(width = 0.8)
+  ) +
+  geom_boxplot(
+    width = 0.25, outlier.shape = NA, alpha = 0.5,
+    position = position_dodge(width = 0.8)
+  ) +
+  geom_jitter(
+    alpha = 0.8,
+    position = position_dodge(width = 0.8)
+  ) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Raincloud Plot of Crop Yield by Fertilizer",
+    x = "Fertilizer",
+    y = "Yield"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  theme(legend.position = "right")  # legend on the right like JASP
+
+```
+
+#### Assumption #5: The dependent variable, crop yield, is approximately normally distributed for each combination of the groups of fertilizer type and crop type, as assessed by Shapiro–Wilk test of normality (p > .05).
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(psych)
+library(rstatix)
+library(kableExtra)
+
+# Your dataset
+crop_yield <- tribble(
+  ~Fertilizer, ~Wheat, ~Corn, ~Soy, ~Rice,
+  "Blend X", 123, 128, 166, 151,
+  "Blend X", 156, 150, 178, 125,
+  "Blend X", 112, 174, 187, 117,
+  "Blend X", 100, 116, 153, 155,
+  "Blend X", 168, 109, 195, 158,
+  "Blend Y", 135, 175, 140, 167,
+  "Blend Y", 130, 132, 145, 183,
+  "Blend Y", 176, 120, 159, 142,
+  "Blend Y", 120, 187, 131, 167,
+  "Blend Y", 155, 184, 126, 168,
+  "Blend Z", 156, 186, 185, 175,
+  "Blend Z", 180, 138, 206, 173,
+  "Blend Z", 147, 178, 188, 154,
+  "Blend Z", 146, 176, 165, 191,
+  "Blend Z", 193, 190, 188, 169
+)
+
+df <- crop_yield %>% 
+  pivot_longer(cols = Wheat: Rice, names_to = "Crop", values_to = "Yield") %>%
+  mutate(Fertilizer = as.factor(Fertilizer),
+         Crop = as.factor(Crop))
+
+compute_desc <- function(data, group_var) {
+  data %>%
+    group_by(.data[[group_var]]) %>%
+    summarise(
+      Valid = n(),
+      Mean = mean(Yield),
+      SD = sd(Yield),
+      Skewness = psych::skew(Yield)[1],
+      SE_Skew = sqrt(6/n()),
+      Kurtosis = psych::kurtosi(Yield)[1],
+      SE_Kurt = sqrt(24/n()),
+      Shapiro_Wilk = shapiro_test(Yield)$statistic,
+      P_value = shapiro_test(Yield)$p,
+      .groups = "drop"
+    ) %>%
+    pivot_longer(-1, names_to = "Statistic", values_to = "Value") %>%
+    pivot_wider(names_from = !!sym(group_var), values_from = Value) %>%
+    mutate(across(-Statistic, ~ round(as.numeric(.), 3)))
+}
+
+desc_by_fertilizer <- compute_desc(df, "Fertilizer")
+desc_by_fertilizer %>%
+  kable(
+    caption = "Descriptive Statistics of Yield by Fertilizer",
+    align = "c"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+desc_by_crop <- compute_desc(df, "Crop")
+desc_by_crop %>%
+  kable(
+    caption = "Descriptive Statistics of Yield by Crop",
+    align = "c"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+#### Assumption #6: The variances for each combination of the groups of fertilizer type and crop type are homogeneous, as assessed by Levene’s test of equality of variances, p = 0.755.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+levene_test_result <- df %>%
+  levene_test(Yield ~ Fertilizer * Crop)
+
+levene_test_result %>%
+  rename(
+    F = statistic,
+    df1 = df1,
+    df2 = df2,
+    p = p
+  ) %>%
+  kable(
+    caption = "Test for Equality of Variances (Levene's Test)",
+    digits = 3,
+    align = "c"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+
+#### Computation
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(kableExtra)
+
+df <- crop_yield %>%
+  pivot_longer(cols = Wheat: Rice, names_to = "Crop", values_to = "Yield") %>%
+  mutate(Fertilizer = as.factor(Fertilizer),
+         Crop = as.factor(Crop))
+
+anova_res <- aov(Yield ~ Fertilizer * Crop, data = df)
+
+anova_table <- summary(anova_res)[[1]] %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Cases") %>%
+  rename(`Sum of Squares` = "Sum Sq",
+         df = "Df",
+         `Mean Square` = "Mean Sq",
+         F = "F value",
+         p = "Pr(>F)") %>%
+  mutate(`Partial Eta Squared` = `Sum of Squares` / (`Sum of Squares` + tail(`Sum of Squares`, 1))) %>%
+  select(Cases, `Sum of Squares`, df, `Mean Square`, F, p, `Partial Eta Squared`)  # JASP sequence
+
+anova_table %>%
+  kable(caption = "Two-way ANOVA Table (JASP-style)", digits = 3) %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+#### Remark: 
+
+#### Results of Simple Main Effects
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(rstatix)
+library(dplyr)
+library(kableExtra)
+
+overall_aov <- aov(Yield ~ Fertilizer * Crop, data = df_long)
+MS_Error <- summary(overall_aov)[[1]][3, "Mean Sq"]
+
+simple_effects_fert <- df_long %>%
+  group_by(Crop) %>%
+  anova_test(Yield ~ Fertilizer) %>%
+  get_anova_table() %>%
+  as_tibble() %>%
+  select(Crop, Effect, DFn, DFd, F, p) %>%
+  rename(`Level of Crop` = Crop,
+         `Source` = Effect,
+         df = DFn) %>%
+  mutate(
+    `Mean Square` = F * MS_Error,
+    `Sum of Squares` = `Mean Square` * df
+  ) %>%
+  select(`Level of Crop`, `Sum of Squares`, df, `Mean Square`, F, p)
+
+simple_effects_fert %>%
+  kable(
+    caption = "Simple Main Effects of Fertilizer within Each Crop",
+    digits = 3
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+sme_means <- df %>%
+group_by(Fertilizer, Crop) %>%
+summarise(
+Mean_Yield = mean(Yield),
+SD = sd(Yield),
+N = n(),
+SE = SD/sqrt(N),
+.groups = "drop"
+)
+
+ggplot(sme_means, aes(x = Fertilizer, y = Mean_Yield, group = Crop, color = Crop)) +
+geom_line(size = 1) +
+geom_point(size = 3) +
+geom_errorbar(aes(ymin = Mean_Yield - SE, ymax = Mean_Yield + SE), width = 0.1) +
+theme_minimal(base_size = 14) +
+labs(
+title = "Simple Main Effects of Fertilizer within each Crop",
+x = "Fertilizer",
+y = "Mean Yield"
+) +
+scale_color_brewer(palette = "Set2") +
+theme(legend.position = "right")
+
+
+```
+
+#### Remark: 
+
+#### Results of Simple Main Effects
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+simple_effects_crop <- df_long %>%
+  group_by(Fertilizer) %>%
+  anova_test(Yield ~ Crop) %>%
+  get_anova_table() %>%
+  as_tibble() %>%
+  select(Fertilizer, Effect, DFn, DFd, F, p) %>%
+  rename(`Level of Fertilizer` = Fertilizer,
+         `Source` = Effect,
+         df = DFn) %>%
+  mutate(
+    `Mean Square` = F * MS_Error,
+    `Sum of Squares` = `Mean Square` * df
+  ) %>%
+  select(`Level of Fertilizer`, `Sum of Squares`, df, `Mean Square`, F, p)
+
+simple_effects_crop %>%
+  kable(
+    caption = "Simple Main Effects of Crop within Each Fertilizer",
+    digits = 3
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+sme_means2 <- df %>%
+group_by(Crop, Fertilizer) %>%
+summarise(
+Mean_Yield = mean(Yield),
+SD = sd(Yield),
+N = n(),
+SE = SD/sqrt(N),
+.groups = "drop"
+)
+
+ggplot(sme_means2, aes(x = Crop, y = Mean_Yield, group = Fertilizer, color = Fertilizer)) +
+geom_line(size = 1) +
+geom_point(size = 3) +
+geom_errorbar(aes(ymin = Mean_Yield - SE, ymax = Mean_Yield + SE), width = 0.1) +
+theme_minimal(base_size = 14) +
+labs(
+title = "Simple Main Effects of Crop within each Fertilizer",
+x = "Crop",
+y = "Mean Yield"
+) +
+scale_color_brewer(palette = "Set2") +
+theme(legend.position = "right")
+
+```
+
+#### Remark: 
+
+Post Hoc Comparisons with descriptives
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+```
+Remark
